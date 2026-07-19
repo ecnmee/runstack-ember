@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="RunStack Ember" width="480">
+  <img src="assets/logo.png" alt="RunStack Ember" width="480">
 </p>
 
 # RunStack Ember
