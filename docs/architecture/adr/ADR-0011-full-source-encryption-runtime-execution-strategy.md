@@ -389,6 +389,15 @@ Both `minification` steps in the encrypted pipeline are the same pass, `Minifica
 
 Nothing above requires opening the Runtime Layer. The loader remains fully self-contained, per the original decision in this ADR. The Runtime Layer opens when a second concrete need for shared runtime behavior appears, not preemptively.
 
-### Not yet decided
+### Product activation (2026-08-21, later same day): decided
 
-Whether `EncryptionPass` (with or without `--lean`) is activated in `premium.php` or `enterprise.php` is an explicit non-decision here. That is a product decision, separate from the architecture question this addendum closes, and is deferred to a later ADR or edition change.
+The prior version of this section deferred whether `EncryptionPass` is activated in any edition. That has since been decided:
+
+- **Enterprise**: activated. `src/Editions/enterprise.php` now runs `symbol-rename -> string-protection -> control-flow -> minification -> encryption -> loader-minification`, with `integrity-verification` removed for the reason given above. `MinificationPass` gained an optional constructor name override (`'loader-minification'`) specifically so `PassRegistry` -- which requires `pass->name()` to match its registered name exactly -- can resolve the same class under two names without weakening `PassRegistry::assertNoDuplicates()`. Covered end-to-end by `EnterpriseEditionIntegrationTest`, which builds a real `PassRegistry`, loads `enterprise.php` through `Edition::fromFile`, and asserts both the executed pass order and functional correctness of the output.
+- **Premium**: not activated, on purpose, not merely not-yet-gotten-to. `premium.php` is unchanged. Full-source encryption carries real operational cost (temp-file materialization, decrypt-on-every-request, no persistent OPcache reuse in this version) that Enterprise's pricing/positioning can absorb without more production performance data than currently exists. This is a product line distinction worth having, not a gap to close later by symmetry.
+
+### Next blocker: no production entry point yet
+
+Passing tests (currently 88/88 across the monorepo) demonstrate that the pipeline is correctly implemented and correctly wired through `PassRegistry` and `Edition`. It does not demonstrate that a real consumer can use it: no `PassRegistry` in this codebase is populated with the production `Pass` classes outside of test files. `PassRegistryTest`, `FreeEditionIntegrationTest`, and `EnterpriseEditionIntegrationTest` each construct their own ad hoc registry inline; there is no `bin/`, CLI command, or bootstrap file that does this once for a real build.
+
+This was true before Enterprise activated encryption, but it matters more now: `enterprise.php` stopped being validated configuration and started being an unshipped product capability the moment `encryption` was added to it. Closing that gap -- a real entry point taking a source path and an edition name, and producing protected output -- is the next architectural step, not further Source-layer obfuscation techniques. That entry point is not designed yet; this paragraph is a pointer to the work, not a decision about its shape.
