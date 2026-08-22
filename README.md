@@ -18,7 +18,7 @@ Ember applies protection through passes, each one a well defined transformation 
 
 **Packaging layer.** How the protected artifact is assembled: full-source encryption, which replaces the protected program with an encrypted payload and a self-contained loader, authenticated with AES-256-GCM.
 
-**Intermediate layer.** Reserved for transformations on a compiled or serialized representation of the code, between the source and packaging stages.
+**Intermediate layer.** Transformations on a compiled or serialized representation of the code, between the source and packaging stages. Bytecode generation and virtualization belong here; see the roadmap for sequencing.
 
 This separation means a technique is never tangled with the commercial tier it happens to ship in. A pass declares its layer and its behavior; an edition declares which passes it includes. The two concerns stay independent.
 
@@ -35,11 +35,26 @@ Ember ships as four editions, each a specific combination of passes:
 
 Enterprise trades integrity verification for full-source encryption: an AES-256-GCM authenticated cipher already detects any modification to the encrypted artifact, so a separate integrity check would duplicate a guarantee the encryption already provides. Every other layer of protection in Premium carries over unchanged.
 
+## Threat model
+
+Ember is designed to raise the cost of casual and semi-automated attacks: source inspection, generic static analysis tools, casual redistribution, and casual license tampering. It does not claim to stop a dedicated, well-resourced attacker with unlimited time and full access to the machine running the protected code. See [ADR-0009](docs/architecture/adr/0009-threat-model.md) for the full boundary.
+
 ## Architecture decisions
 
-Every significant design decision behind Ember is recorded as an Architecture Decision Record before it is implemented, not after. `docs/architecture/adr/` contains the full history: why passes are organized into four layers, why editions are configuration rather than code, why full-source encryption uses a temporary file and `include()` instead of `eval()`, and the reasoning behind every tradeoff in between.
+Every significant design decision behind Ember is recorded as an Architecture Decision Record before it is implemented, not after. A capability is documented in this README only once it has a working implementation and a test that exercises the specific claim ([ADR-0003](docs/architecture/adr/0003-marketing-follows-implementation.md)).
 
-Reading the ADRs in order shows not just what Ember does, but why it does it that way, including the alternatives that were considered and rejected.
+[`docs/architecture/adr/`](docs/architecture/adr/README.md) contains the full history: why passes are organized into four layers, why editions are configuration rather than code, why full-source encryption uses a temporary file and `include()` instead of `eval()`, and the reasoning behind every tradeoff in between. Reading the ADRs in order shows not just what Ember does, but why it does it that way, including the alternatives that were considered and rejected.
+
+## Documentation
+
+- [Vision](docs/architecture/vision.md): what Ember is and is not.
+- [Architecture Decision Records](docs/architecture/adr/README.md): every significant technical decision, with context.
+- [Glossary](docs/architecture/glossary.md): shared vocabulary.
+- [Roadmap](docs/architecture/roadmap.md): what is planned, phase by phase.
+
+## License
+
+RunStack Ember is commercial software. Licensing terms and verification model are documented in [ADR-0008](docs/architecture/adr/0008-asymmetric-license-verification.md).
 
 ## What lives here
 
