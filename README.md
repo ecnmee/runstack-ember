@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="RunStack Ember" width="480">
+</p>
+
 # RunStack Ember
 
 RunStack Ember protects PHP applications from casual inspection and reverse engineering. It transforms plain PHP source into hardened output through a pipeline of composable protection techniques, organized into a clear layered architecture rather than a single opaque obfuscation step.
