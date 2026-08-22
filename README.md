@@ -1,69 +1,42 @@
-<p align="center">
-  <img src="assets/logo.png" alt="RunStack Ember" width="480">
-</p>
-
 # RunStack Ember
 
-**Beyond obfuscation.**
+RunStack Ember protects PHP applications from casual inspection and reverse engineering. It transforms plain PHP source into hardened output through a pipeline of composable protection techniques, organized into a clear layered architecture rather than a single opaque obfuscation step.
 
-RunStack Ember is a modern code protection platform for PHP, combining AST transformations, encryption, runtime protection, licensing and application hardening into a single build pipeline.
+This repository hosts the public architecture documentation for Ember: the decisions behind how it works, why it works that way, and what each edition includes. The engine implementation is private.
 
-```
-runstack/ember
-```
+## How protection works
 
-```php
-use RunStack\Ember\...;
-```
+Ember applies protection through passes, each one a well defined transformation with a single responsibility. Every pass belongs to exactly one of four layers, based on when and where it acts:
 
-```bash
-ember protect app/
-ember build
-ember verify
-ember inspect
-```
+**Source layer.** Transformations applied to PHP source before it runs: minification, symbol renaming, string literal protection, and control flow obfuscation.
 
-## What this is
+**Runtime layer.** Checks that run while the protected application executes: integrity verification, which detects tampering with the distributed file.
 
-Ember is not a single obfuscation technique. It is a pipeline of protection passes, organized into four layers (source, intermediate, runtime, packaging), that PHP applications run through at build time. Which passes run is controlled by edition (Free, Basic, Premium, Enterprise); the underlying engine is shared.
+**Packaging layer.** How the protected artifact is assembled: full-source encryption, which replaces the protected program with an encrypted payload and a self-contained loader, authenticated with AES-256-GCM.
 
-```text
-RunStack Ember
+**Intermediate layer.** Reserved for transformations on a compiled or serialized representation of the code, between the source and packaging stages.
 
-Engine
-├── Parser
-├── Pipeline
-├── Runtime
-├── Cryptography
-├── Licensing
-└── Packaging
+This separation means a technique is never tangled with the commercial tier it happens to ship in. A pass declares its layer and its behavior; an edition declares which passes it includes. The two concerns stay independent.
 
-Protection Passes
-├── Minification
-├── Symbol Renaming
-├── String Protection
-├── Control Flow
-├── Runtime Guards
-├── Integrity Verification
-├── Encryption
-└── Virtualization (planned)
-```
+## Editions
 
-## Status
+Ember ships as four editions, each a specific combination of passes:
 
-This is a ground-up rewrite. See [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md) for what is implemented versus planned. Per [ADR-0003](docs/architecture/adr/0003-marketing-follows-implementation.md), a capability is documented here only once it has a working implementation and a test that exercises the specific claim, so this README will grow slowly and deliberately rather than all at once.
+| Edition | Protection |
+|---|---|
+| Free | Minification |
+| Basic | Minification, symbol renaming |
+| Premium | Minification, symbol renaming, string protection, control flow obfuscation, integrity verification |
+| Enterprise | Minification, symbol renaming, string protection, control flow obfuscation, full-source encryption |
 
-## Threat model
+Enterprise trades integrity verification for full-source encryption: an AES-256-GCM authenticated cipher already detects any modification to the encrypted artifact, so a separate integrity check would duplicate a guarantee the encryption already provides. Every other layer of protection in Premium carries over unchanged.
 
-Ember is designed to raise the cost of casual and semi-automated attacks: source inspection, generic static analysis tools, casual redistribution, and casual license tampering. It does not claim to stop a dedicated, well-resourced attacker with unlimited time and full access to the machine running the protected code. See [ADR-0009](docs/architecture/adr/0009-threat-model.md) for the full boundary.
+## Architecture decisions
 
-## Documentation
+Every significant design decision behind Ember is recorded as an Architecture Decision Record before it is implemented, not after. `docs/architecture/adr/` contains the full history: why passes are organized into four layers, why editions are configuration rather than code, why full-source encryption uses a temporary file and `include()` instead of `eval()`, and the reasoning behind every tradeoff in between.
 
-- [Vision](docs/architecture/vision.md) — what Ember is and is not.
-- [Architecture Decision Records](docs/architecture/adr/README.md) — every significant technical decision, with context.
-- [Glossary](docs/architecture/glossary.md) — shared vocabulary.
-- [Roadmap](docs/architecture/roadmap.md) — what is planned, phase by phase.
+Reading the ADRs in order shows not just what Ember does, but why it does it that way, including the alternatives that were considered and rejected.
 
-## License
+## What lives here
 
-Licensing terms to be added once the licensing model (see [ADR-0008](docs/architecture/adr/0008-asymmetric-license-verification.md)) is implemented.
+This is the public face of RunStack Ember: architecture documentation, design rationale, and the public interface contracts the engine exposes. The protection engine itself, including every pass implementation, lives in a private repository and ships to customers as a licensed product.
