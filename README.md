@@ -18,7 +18,7 @@ Ember applies protection through passes, each one a well defined transformation 
 
 **Packaging layer.** How the protected artifact is assembled: full-source encryption, which replaces the protected program with an encrypted payload and a self-contained loader, authenticated with AES-256-GCM.
 
-**Intermediate layer.** Transformations on a compiled or serialized representation of the code, between the source and packaging stages. Bytecode generation and virtualization belong here; see the roadmap for sequencing.
+**Intermediate layer.** Transformations on a compiled or serialized representation of the code, between the source and packaging stages.
 
 This separation means a technique is never tangled with the commercial tier it happens to ship in. A pass declares its layer and its behavior; an edition declares which passes it includes. The two concerns stay independent.
 
