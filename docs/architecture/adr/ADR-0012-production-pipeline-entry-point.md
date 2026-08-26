@@ -1,6 +1,6 @@
 # ADR-0012: Production Pipeline Entry Point
 
-* Status: Proposed
+* Status: Accepted
 * Date: 2026-08-22
 * Deciders: RunStack Ember
 * Scope: Pipeline, CLI
@@ -124,25 +124,38 @@ None of that means the entry point runs passes in `Source -> Intermediate -> Run
 
 It does not construct a `Pass` directly. It does not know pass names beyond what it needs to pass an edition name string through. If a future change means the CLI needs to know more than that to do its job, that is a signal the contract in this ADR is wrong somewhere, not a reason to let the CLI reach past it.
 
-### Error handling: catalog what can already go wrong, decide once
+### Error handling: four categories, not one wrapper
 
-The composition above can currently throw, from what already exists in this codebase:
+The composition can fail for reasons that are not all the same kind of failure, and collapsing them into one exception type would hide that difference from every consumer:
 
-* `RuntimeException` from `Edition::fromFile` (missing file, malformed return value).
-* `OutOfBoundsException` from `PassRegistry::make` (unknown pass name in an edition file).
-* `LogicException` from `PassRegistry::make` (factory/name mismatch) or `PassRegistry::buildPipeline` (duplicate pass name).
-* `RuntimeException` from `Pipeline::run` (empty pass list).
-* `InvalidArgumentException` from any pass (wrong payload type reaching it).
-* A parse error from `nikic/php-parser` (malformed input PHP) inside any `AbstractAstPass`-based pass.
-* `RuntimeException` from `EncryptionPass` (encryption/compression failure) or a decrypt-time failure, though the latter only happens later, when the protected artifact runs, not when it is built.
+| Category | Example | Type |
+|---|---|---|
+| CLI usage / validation error | missing argument, input file does not exist, output path equals input path | Handled entirely inside the CLI, before the composition ever runs. Not a library exception at all. |
+| Malformed input PHP | `nikic/php-parser` cannot parse the file | `RunStack\Ember\Source\ParseException`, thrown by `AbstractAstPass::process()` when it catches `\PhpParser\Error` internally. See "Dependency boundary" below: the CLI never sees `\PhpParser\Error` directly, and does not need to. |
+| Protection composition failure | unknown pass name, duplicate pass in an edition, empty pipeline, malformed edition file, encryption/compression failure | Wrapped as `RunStack\Ember\Pipeline\ProtectionException`, with the original exception preserved as `getPrevious()`. |
+| Unexpected failure | anything not in the three categories above | Left uncaught by the CLI's specific handlers. It propagates as whatever it actually is, with its real class name and stack trace intact, because that is a bug signal, not a normal failure mode of the tool, and hiding it behind `ProtectionException` would make real defects harder to find, not easier. |
 
-Two options:
+**Dependency boundary: `AbstractAstPass` translates the external parser's exception, so the CLI never depends on it.** `\PhpParser\Error extends \RuntimeException`. If `AbstractAstPass` did not translate it, that inheritance would matter for catch order at every consuming call site: a `catch (\RuntimeException)` block placed before a `catch (\PhpParser\Error)` block would silently absorb parse errors as if they were protection-composition failures. Rather than push that ordering requirement onto every consumer, `AbstractAstPass::process()` catches `\PhpParser\Error` once, where it already touches the parser directly, and throws `RunStack\Ember\Source\ParseException` (extending `\InvalidArgumentException`, an unrelated hierarchy from `\RuntimeException`, so no catch-order hazard exists downstream). The CLI catches `ParseException`, not `\PhpParser\Error`; it does not need to know which parsing library this package uses internally.
 
-**Option A.** The CLI catches `\Throwable` broadly at the top level, prints `$e->getMessage()`, exits non-zero. Simple, but a future second consumer (an HTTP API, for instance) has to redo the same broad catch and hope the message text is presentable to whoever is asking.
+This also means `AbstractAstPass::process()`'s other two `\InvalidArgumentException` sites, wrong payload type reaching a pass and a parse that succeeds but yields an empty AST, are deliberately unchanged. The first indicates a bug in how the pipeline was composed, not a property of the input PHP; the second is a real, separate open question this decision does not resolve (is an empty-but-syntactically-valid file a parse failure or something else) and is left as `\InvalidArgumentException`, not promoted to `ParseException`, until that question is decided on its own.
 
-**Option B.** The core composition wraps every exception above into a single `RunStack\Ember\Pipeline\ProtectionException` (or similar), preserving the original as `getPrevious()`. Every consumer, CLI or otherwise, only needs to catch one type to handle "this build failed, here is why" uniformly.
+`ProtectionException` wraps only the exception types the composition is already known to throw for domain reasons: `OutOfBoundsException` and `LogicException` from `PassRegistry`, `RuntimeException` from `Edition::fromFile`, `Pipeline::run`, and `EncryptionPass`. It does not wrap `ParseException` (a different category, above, with its own catch block) or the bug-indicating `\InvalidArgumentException` case described in the previous paragraph, which belongs in the "unexpected failure" category, uncaught, visible.
 
-This ADR proposes Option B, but does not consider it fully decided; see open questions.
+### Output: a predictable derived name by default, never silently in place
+
+```text
+ember protect input.php --edition=enterprise
+```
+
+writes to `input.ember.php` in the same directory, derived by inserting `.ember` before the original extension. This never requires `--output` for the common case, and it never overwrites `input.php`.
+
+```text
+ember protect input.php --edition=enterprise --output=protected.php
+```
+
+writes to the given path instead. Whichever path is used, resolved (not literal-string) input and output paths are compared before anything runs; if they resolve to the same file, the CLI refuses and exits with a usage error rather than silently destroying the source. There is no `--in-place` flag in this version. Overwriting the only copy of a file this tool's entire purpose is to transform is a dangerous default to make convenient before there is a concrete reason to need it.
+
+`--edition` has no default and is always required. Silently choosing one on the caller's behalf risks either under-protecting (defaulting to Free when the caller assumed more) or doing more than asked (defaulting to Enterprise, running encryption unexpectedly).
 
 ## Non-goals
 
@@ -153,13 +166,13 @@ This ADR does not:
 * Decide on an HTTP API. "CLI/API" in this ADR's title and diagrams refers to CLI now, with the composition kept adapter-agnostic enough that an HTTP layer could reuse it later, not to a concrete HTTP design decided here.
 * Touch `EncryptionPass`, `MinificationPass`, `PassRegistry`'s existing methods, or any edition's pass list. Those are closed per ADR-0011 and its addendum.
 
-## Open questions
+## Decided
 
-1. **Where does the CLI script physically live and how is it invoked?** `composer.json` has no `bin` entry yet. Options include a `bin/ember` executable script (the common Composer convention, installed to `vendor/bin/ember` for consumers who require this package) or something under `src/CLI/` invoked via `php src/CLI/whatever.php`. This affects `composer.json`, not just `src/`.
-2. **Is `ProtectionException` (Option B above) worth the abstraction now**, or is broad `\Throwable` catching in the CLI (Option A) sufficient until a second consumer actually exists? This is the same "build it when a second need appears" question already applied twice in this ADR; it is not obviously resolved the same way both times, because exception handling is harder to retrofit across every call site later than a registry factory is.
-3. **What does the CLI do with a `ParseError` from malformed input PHP?** Every other error case above has a message already written by this codebase. A parse error's message comes from `nikic/php-parser` directly, which was never designed to be shown to an end user as-is. Deciding to pass it through unmodified versus wrapping it with file/line context is a real, separate design question.
-4. **Output destination when it is not provided.** Overwrite the input file, require an explicit output path always, or write to stdout by default with a flag to write to a file? Each has a different risk profile for a tool whose entire job is destructive by nature (replacing readable PHP with something else).
+1. **The CLI lives at `bin/ember`**, the standard Composer executable convention (`"bin": ["bin/ember"]`), not under `src/CLI/`. `src/CLI/` remains reserved for classes, per its own `.gitkeep`, should CLI-specific logic ever grow past what a thin script can hold; nothing in this version's five responsibilities needs one.
+2. **`ProtectionException` is created**, scoped to exactly the domain-failure category in the table above, not as a catch-all for every `\Throwable` the composition could produce.
+3. **`AbstractAstPass` translates `\PhpParser\Error` into `RunStack\Ember\Source\ParseException`**, preserving the original as `getPrevious()`. The CLI catches `ParseException`, not `\PhpParser\Error`, and re-presents it with the input file path added, since the parser itself never sees a file path, only a string. This was corrected after `bin/ember`'s first implementation attempt assumed `\PhpParser\Error` would reach it directly; it does not, because `AbstractAstPass` already catches and re-throws it as a plain `\InvalidArgumentException`, indistinguishable from the unrelated "wrong payload type" case without this change. See "Dependency boundary" above for the reasoning in full.
+4. **Output defaults to a derived filename (`input.ember.php`)**, `--output` overrides it, and an input/output path collision is a refused usage error, never a silent overwrite.
 
 ## Status
 
-Proposed. Not implemented. Written for review before any code changes, per the same process ADR-0011 followed.
+Accepted. All four questions this ADR opened with are decided above. `PassRegistry::withDefaults()` is implemented and tested (91/91, monorepo). `ProtectionException` and `bin/ember` are the remaining implementation work this ADR authorizes.
