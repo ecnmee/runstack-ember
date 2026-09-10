@@ -1,24 +1,10 @@
 # ADR-0007: Protection model, layered by where protection happens
 
-## Status
-
-Accepted
-
-## Date
-
-2026-07-10
-
-## Authors
-
-RunStack Team
-
-## Supersedes
-
-—
-
-## Superseded by
-
-—
+* Status: Accepted
+* Date: 2026-07-10
+* Authors: RunStack Team
+* Supersedes: none
+* Superseded by: none
 
 ## Context
 
@@ -40,7 +26,6 @@ A pass declares which layer it belongs to. A technique that seems to span two la
 - Anyone proposing a new protection technique states its layer before writing code, which surfaces design questions early (for example: "should this check run at packaging time or at runtime?").
 - The four layers become the organizing structure for both the codebase (`src/Source`, `src/Intermediate`, `src/Runtime`, `src/Packaging`) and the documentation, replacing "Level N" as the primary way of describing the product.
 - Commercial tiers remain a configuration on top of this model, per ADR-0006: a tier is a selection of passes across these four layers, not a layer or a level itself.
-
 
 ## Addendum (2026-08-24): what `Layer` describes, and the `loader-minification` case
 

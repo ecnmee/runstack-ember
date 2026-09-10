@@ -1,24 +1,10 @@
 # ADR-0008: License verification is asymmetric
 
-## Status
-
-Accepted
-
-## Date
-
-2026-07-10
-
-## Authors
-
-RunStack Team
-
-## Supersedes
-
-—
-
-## Superseded by
-
-—
+* Status: Accepted
+* Date: 2026-07-10
+* Authors: RunStack Team
+* Supersedes: none
+* Superseded by: none
 
 ## Context
 
