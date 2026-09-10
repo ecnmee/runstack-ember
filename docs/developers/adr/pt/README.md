@@ -16,5 +16,6 @@ Este índice lista todas as ADRs do RunStack Ember. "Origem" indica se a decisã
 | [ADR-0010](0010-segundo-caso-real-nao-especulativo.md) | Construir para o segundo caso real, não para o primeiro caso especulativo | Reconstruída |
 | [ADR-0011](0011-encriptacao-total-do-source-estrategia-de-execucao-em-runtime.md) | Encriptação total do código-fonte / Estratégia de execução em runtime | Original, com dois addenda de 2026-08-21 (integridade/ordem, activação por edição, e o bloqueio do ponto de entrada de produção) |
 | [ADR-0012](0012-ponto-de-entrada-da-pipeline-de-producao.md) | Ponto de entrada da pipeline de produção | Original |
+| [ADR-0013](0013-camada-intermediate-bytecode-vm.md) | Camada Intermediate: representação em bytecode e máquina virtual | Proposta, ainda não aceite; duas das suas questões de desenho estão decididas |
 
 As ADRs reconstruídas declaram, no seu próprio cabeçalho, que o texto histórico não foi preservado, e separam o que é sustentado por evidência do que é raciocínio reconstruído. Não devem ser lidas como documentos históricos literais.

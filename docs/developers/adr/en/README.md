@@ -16,5 +16,6 @@ This index lists every ADR for RunStack Ember. "Origin" marks whether the decisi
 | [ADR-0010](0010-second-real-case-not-first-speculative-one.md) | Build for the second real case, not the first speculative one | Reconstructed |
 | [ADR-0011](0011-full-source-encryption-runtime-execution-strategy.md) | Full-Source Encryption / Runtime Execution Strategy | Original, with two 2026-08-21 addenda (integrity/ordering, edition activation, and the production-entry-point blocker) |
 | [ADR-0012](0012-production-pipeline-entry-point.md) | Production Pipeline Entry Point | Original |
+| [ADR-0013](0013-intermediate-layer-bytecode-vm.md) | Intermediate layer: bytecode representation and virtual machine | Proposed, not yet accepted; two of its design questions are decided |
 
 Reconstructed ADRs state, in their own header, that historical wording was not preserved and separate what is supported by evidence from what is reconstructed rationale. They should not be read as literal historical documents.
